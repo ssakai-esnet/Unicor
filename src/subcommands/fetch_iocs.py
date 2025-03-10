@@ -4,6 +4,7 @@ import logging
 from pymisp import PyMISP
 from pathlib import Path
 from utils import file as unicor_file_utils
+from utils import time as unicor_time_utils
 
 logger = logging.getLogger(__name__)
 
@@ -42,7 +43,7 @@ def fetch_iocs(ctx,
     for misp_conf in ctx.obj['CONFIG']["misp_servers"]:
         misp = PyMISP(misp_conf['domain'], misp_conf['api_key'], misp_conf['verify_ssl'], debug=misp_conf['debug'])
         if misp:
-            misp_connections.append((misp, misp_conf['args'], misp_conf['periods']['tags']))
+            misp_connections.append((misp, misp_conf['args'], misp_conf['ioc_stagging']))
 
     domain_attributes_old = []
     domain_attributes_new = []
@@ -51,22 +52,28 @@ def fetch_iocs(ctx,
 
 
     # Get new attributes
-    for misp, args, tag_periods in misp_connections:
+    for misp, args, ioc_stagging in misp_connections:
         ips_to_validate = set()
-
+        
         attributes = []
 
-        # Keep configured tag names to exclude them from catch all
+        # Keep the list of other_iocs tag names to exclude them from catch all
         configured_tags = []
 
-        for tag in tag_periods:
-            configured_tags.extend(tag['names'])
-
-            if tag['delta']:
-                misp_timestamp = datetime.utcnow() - timedelta(**tag['delta'])
+        for entry in ioc_stagging:
+            # Skip entries that have the 'generic' tag
+            if 'generic' in entry.get('tags', []):
+                continue
+            
+            # Extract tags and max_age
+            tags = entry.get('tags', [])
+            max_age = entry.get('max_age', {}).get('ioc_date', None)
+            configured_tags.extend(tags) # Saving the tags we are searching for
+            
+            if max_age is not None:
+                misp_timestamp = unicor_time_utils.convert_date_to_timestamp(max_age)
             else:
-                misp_timestamp=None
-
+                misp_timestamp = None
 
             tag_attributes = misp.search(
                 controller='attributes',
@@ -82,7 +89,7 @@ def fetch_iocs(ctx,
                 ],
                 to_ids=1,
                 pythonify=True,
-                tags=tag['names'],
+                tags=tags,
                 timestamp=misp_timestamp,
                 **args
             )
@@ -90,9 +97,9 @@ def fetch_iocs(ctx,
             attributes.extend(tag_attributes)
 
         # Fetch catch all
-
-        if misp_conf['periods']['generic']['delta']:
-            misp_timestamp = datetime.utcnow() - timedelta(**misp_conf['periods']['generic']['delta'])
+        generic_max_age = ioc_stagging[0].get('max_age', {}).get('ioc_date', None) if 'generic' in ioc_stagging[0].get('tags', []) else None
+        if generic_max_age is not None:
+            misp_timestamp = unicor_time_utils.convert_date_to_timestamp(generic_max_age)
         else:
             misp_timestamp=None
 

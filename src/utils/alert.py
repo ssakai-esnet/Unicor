@@ -12,6 +12,7 @@ from pathlib import Path
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from utils.time import parse_rfc3339_ns
+from datetime import timedelta
 
 logger = logging.getLogger(__name__)
 
@@ -41,87 +42,100 @@ def register_new_alert(alerts_database, alerts_database_max_size, alert):
         return False
     return False
 
+def parse_msg(path, variables):
+    # Define the custom enumerate filter for Jinja2
+    def enumerate_filter(iterable):
+        return enumerate(iterable, 1)
+
+    # Path to the template file
+    template_file = Path(path)
+
+    # Set up Jinja2 environment and loader
+    template_loader = jinja2.FileSystemLoader(searchpath=template_file.parent)
+    template_env = jinja2.Environment(loader=template_loader)
+    # To allow the use of the timedelta and pytz inside the Jinja2 templates
+    template_env.globals.update(timedelta = timedelta)
+    template_env.globals.update(pytz = pytz)
+    # Add the custom filter to the Jinja2 environment
+    template_env.filters['enumerate'] = enumerate_filter
+
+    # Load the template
+    template = template_env.get_template(template_file.name)
+
+    try:
+        msg = template.render(variables)
+    except jinja2.TemplateError as e:
+        logger.error(f"Unexpected error while rendering alert template in {path}: {e}")
+        msg = template.render(alerts=variables)  # Second attempt
+
+    return msg
+
+def build_msg(path, match):
+    # Load all alerts in one template
+    timestamp = ""
+    if not match.get('detections'): # We have a single detection, we need to extract + format timestamp
+        dt= datetime.strptime(match['timestamp'][:26], "%Y-%m-%dT%H:%M:%S.%f")
+        timestamp =  dt.strftime("%Y-%m-%d %H:%M:%SZ")
+    context = {
+        'events': match['correlation']['misp']['events'],
+        'match': match,
+        'timestamp': timestamp,
+    }
+    msg = parse_msg(path, context)
+    return msg
 
 def messaging_webhook_alerts(match, config, alert_pattern, alerts_database, alerts_database_max_size, alert_type):
     #logger.debug("messaging_webhook hook {}".format(config['webhook']))
-
-    msg = ""
-    # Parsing MISP event(s) associate with the IOC
-    misp_events = ""
-    misp_tags = ""
-    misp_ioc = ""
-    misp_ioc_addition = ""
-    
     if 'correlation' in match and 'misp' in match['correlation'] and 'events' in match['correlation']['misp']:
-        events = match['correlation']['misp']['events']
-        if events:
-            for event in events:
-                misp_events += "[" + event.get('organization') + "] "
-                misp_events += "<" + event.get('event_url') + "|" + event.get('info')  + ">\n"
-
-                
-                # Extract the 3 first tags of each event associated with the IOC
-                tags = event.get('tags', [])
-                for tag in tags[:3]:
-                    misp_tags += tag['name'].replace('"', '\\"') + ", "  
-
-            # formatting the collected data
-
-            if misp_tags.endswith(", "):
-                misp_tags = misp_tags[:-2]        
-
-            misp_ioc += "`" + event.get('ioc').replace('.', '[.]') + "` (" + event.get('ioc_type') + ")\n"
-            misp_ioc_addition += "- *MISP IOC date*: " + event.get('publication') + "\n"
-            if event.get('comment'):
-                misp_ioc_addition += "- *MISP IOC Comment*: " + event.get('comment').replace('\n', ', ') + "\n"
+        # Let's build a message
+        if match['correlation']['misp']['events']:
+            msg = build_msg(config['template'], match)            
         else:
-            misp_events = "[No MISP event found]\n"
+            logger.error("No correlation data found for {}".format(alert_pattern))
     else:
-        logger.warning("No correlation data found for {}".format(alert_pattern))
-
-
-    # Assembling our messaging_webhook message
-    msg += misp_events
-    if misp_tags:
-        msg += "*tags*: \"" + misp_tags + "\"\n"
-    
-    msg += "- *IOC*: `" + match.get('ioc').replace('.', '[.]') + "`\n"
-    msg += misp_ioc_addition
-    if match.get('uid'):
-        msg += "UID: " + match['uid']
-        
-    dt = datetime.strptime(match['timestamp'][:26], "%Y-%m-%dT%H:%M:%S.%f")
-
-    if match.get('url'):
-        msg += "[*Detection*](" + match['url'] + ")"
-    else:
-        msg += "*Detection*" 
-
-    msg += " (" + dt.strftime("%Y-%m-%d %H:%M:%SZ") + "):\n"+ match['detection']
-
+        logger.error("No correlation data found for {}".format(alert_pattern))
     logger.debug("MSG: {}".format(msg))
-    if match.get('uid'):
-        logger.info("Alerting about: {}: {} ".format(match['uid']), match['detection'])
-    else:
-        logger.info("Alerting about: {} ".format( match['detection'])) 
+    
+    alert_log = match.get("detections", [{}])[0].get("detection", match.get("detection"))  
+    logger.info(f"Alerting about: {match['uid'] + ': ' if 'uid' in match else ''}{alert_log}") 
     # SENDING!
-
-    payload = {"text": f"🦄 [Unicor]: {msg}"}
+    payload = {"text": f"{msg}"}
     headers = {"Content-type": "application/json"}
-
     try:
-        
         response = requests.post(config['webhook'], headers=headers, json=payload)
         logger.debug("Webhook: {} - {}".format(response.status_code, response.text))
         response.raise_for_status()  # This will raise an HTTPError if the response was an HTTP error
-
-
         # If the request worked, then register the alert in our "database" to avoir duplicate alerts
         register_new_alert(alerts_database, alerts_database_max_size, alert_pattern)
-
-
     except requests.exceptions.RequestException as e:
         logger.warning("Webhook post failed: {}".format(e))
+
+
+def telegram_alerts(match, config, alert_pattern, alerts_database, alerts_database_max_size, alert_type):
+    if 'correlation' in match and 'misp' in match['correlation'] and 'events' in match['correlation']['misp']:
+        # Let's build a message
+        if match['correlation']['misp']['events']:
+            msg = build_msg(config['template'], match)            
+        else:
+            logger.error("No correlation data found for {}".format(alert_pattern))
+    else:
+        logger.warning("No correlation data found for {}".format(alert_pattern))
+
+    logger.debug("MSG: {}".format(msg))
+    
+    alert_log = match.get("detections", [{}])[0].get("detection", match.get("detection"))  
+    logger.info(f"Alerting about: {match['uid'] + ': ' if 'uid' in match else ''}{alert_log}") 
+    # SENDING!
+    payload = {'chat_id': config['telegram_chat_id'], 'text': msg}
+    telegram_url = f"https://api.telegram.org/bot{config['telegram_bot_token']}/sendMessage"
+
+    try:
+        response = requests.post(telegram_url, data=payload)
+        logger.debug("Telegram: {} - {}".format(response.status_code, response.text))
+        response.raise_for_status()  # This will raise an HTTPError if the response was an HTTP error
+        register_new_alert(alerts_database, alerts_database_max_size, alert_pattern)
+    except requests.exceptions.RequestException as e:
+        logger.warn("Telegram post failed: {}".format(e))
 
 def email_alerts(alerts, config, summary = False):
 

@@ -8,6 +8,7 @@ from utils import file as unicor_file_utils
 from utils import time as unicor_time_utils
 from utils import correlation as unicor_correlation_utils
 from utils import enrichment as unicor_enrichment_utils
+from collections import defaultdict
 import logging
 import jsonlines
 from pymisp import PyMISP
@@ -150,80 +151,71 @@ def correlate(ctx,
     else:
         files = kwargs.get('files')
 
+    # Iterating through the file or the directory
     for file in files:
         file_path = Path(file)
+        file_paths = [file_path] if file_path.is_file() else file_path.rglob('*')
 
-        if file_path.is_file():
-            logger.debug("Correlating {}".format(file))
+        for path in file_paths:
+            if path.is_file():
+                # Reading an actual files with one JSON object per line
+                file_iter, is_minified = unicor_file_utils.read_file(path, delete_after_read=deletemode)
+                if file_iter:
+                    try:
+                        matches = unicor_correlation_utils.correlate_file(
+                            file_iter,
+                            set(domain_attributes),
+                            set(ip_attributes),
+                            domain_attributes_metadata,
+                            ip_attributes_metadata,
+                            is_minified
+                        )
 
-            file_iter, is_minified =  unicor_file_utils.read_file(file_path, delete_after_read = deletemode)
-            # Now go through the file content and correlate each line  
-            if file_iter:
-                try:
-                    matches = unicor_correlation_utils.correlate_file(
-                        file_iter,
-                        set(domain_attributes),
-                        set(ip_attributes),
-                        domain_attributes_metadata,
-                        ip_attributes_metadata,
-                        is_minified
-                    )
-                    
-                    if is_minified:
-                        total_matches_minified.extend(matches)
-                    else:
-                        total_matches.extend(matches)
+                        if len(matches):
+                            logger.info("Found {} matches in {}".format(len(matches), path.absolute()))
+                            #logger.info("Matches: {}".format(matches['dns']['qname']))
+                        else:
+                            logger.info("No match found in {}".format(path.absolute()))
+                        if is_minified:
+                            total_matches_minified.extend(matches)
+                        else:
+                            total_matches.extend(matches)
+                    except:
+                        logger.error("Failed to parse {}, skipping".format(path))
+                        continue
+                else:
+                    logger.debug("No data in {}".format(file_path))
 
-                    if len(matches):
-                        logger.info("Found {} matches in {}".format(len(matches), file_path.absolute()))
-                    else:
-                        logger.info("No match found in {}".format(file_path.absolute()))
-
-                except Exception as e:  # Capture specific error details
-                    logger.error("Failed to parse {}, skipping. Error: {}".format(file, str(e)))
-                    #logger.error(traceback.format_exc())  # Logs the full traceback for debugging
-                    continue
-            else:
-                logger.info("No data in {}".format(file_path))
-
-
-        else:
-            # Recursively handle stuff
-
-            for nested_path in file_path.rglob('*'):
-                if nested_path.is_file():
-                    file_iter, is_minified =  unicor_file_utils.read_file(nested_path, delete_after_read = deletemode)
-                    if file_iter:
-                        try:
-                            matches = unicor_correlation_utils.correlate_file(
-                                file_iter,
-                                set(domain_attributes),
-                                set(ip_attributes),
-                                domain_attributes_metadata,
-                                ip_attributes_metadata,
-                                is_minified
-                            )
-
-                            if len(matches):
-                                logger.info("Found {} matches in {}".format(len(matches), nested_path.absolute()))
-                                #logger.info("Matches: {}".format(matches['dns']['qname']))
-                            else:
-                                logger.info("No match found in {}".format(nested_path.absolute()))
-                            if is_minified:
-                                total_matches_minified.extend(matches)
-                            else:
-                                total_matches.extend(matches)
-                        except:
-                            logger.error("Failed to parse {}, skipping".format(nested_path))
-                            continue
-
+  
+  
+    # Condense matches (detections) that have the same IOC:
+    
+    condensed_matches = defaultdict(lambda: {"ioc": "", "ioc_type": "", "detections": []})
+    for detections in total_matches:
+        ioc = detections["ioc"]
+        
+        # Initialize main keys
+        condensed_matches[ioc]["ioc"] = ioc
+        condensed_matches[ioc]["ioc_type"] = detections["ioc_type"]
+        
+        # Append nested entries
+        condensed_matches[ioc]["detections"].append({
+            "timestamp_rfc3339ns": detections["timestamp_rfc3339ns"],
+            "detection": detections["detection"],
+            "uid": detections["uid"],
+            "url": detections["url"],
+        })
+    #result = list(condensed_matches.values())
+    total_matches = list(condensed_matches.values())  
+        
+  
     if not len(total_matches):
         logger.info("No MISP correlation found in the input.")
 
     # We have a list of matches, let's enrich them with MISP meta data
     #logger.debug("Enrich input: {}".format(total_matches))
     else:
-        # This part is now indented to NOT alert if the ioc is not in MISP
+        # This part is now indented to NOT alert if there is no corresponding IOC in MISP
         enriched = unicor_enrichment_utils.enrich_logs(total_matches, misp_connections, False)
         enriched_minified = unicor_enrichment_utils.enrich_logs(total_matches_minified, misp_connections, True)
 
@@ -233,7 +225,6 @@ def correlate(ctx,
         # Write full enriched matches to matches.json
 
         to_output = enriched + enriched_minified
-        to_output = sorted(to_output, key=lambda d: d['timestamp'])
 
         with jsonlines.open(Path(correlation_config['output_dir'], "matches.json"), mode='a') as writer:
             for document in to_output:

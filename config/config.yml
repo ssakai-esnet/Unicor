@@ -4,24 +4,24 @@ misp_servers:
    api_key: "My_MISP_API_key" # <-- You MUST ADD YOUR OWN MISP API KEY HERE
    verify_ssl: True # Switch to false to debug, stick to True in production
    debug: False 
-   # misp.search() arguments. Expert mode below to enable IOC decaying.
+   # misp.search() arguments
    args:
-     enforce_warninglist: True  # This is to enable MISP Warninglists and avoid false positives
-   periods: # Here we configure stagging of IOC. We take all IOCs within the last $days days. Default is 30.
-     generic:
-       delta:
-         days: 30
-     tags: # In addition, if the events have specific $names tags, we will also enclude older events up to $days days.
-     - names:
+     enforce_warninglist: True 
+   ioc_stagging:
+     - tags:
+         - "generic"
+       max_age:
+        # Date in MISP DateRestSearchFilter format [S,M,h,d,w,m,Y] or timestamp %Y-%m-%d %H:%M:%S
+         ioc_date: 10d
+     - tags:
          - "apt"
-         - "#APT"
-         - "cert-ist:threat_targeted_sector=\"Academic and Research\""
-       delta:
-         days: 150
-     - names:
+         - "tlp:amber"
+       max_age:
+         ioc_date: 1Y # 1 year of "tlp:amber" MISP IOCs
+     - tags:
          - "SAFER"
-       delta:
-         days: 1500
+       max_age:
+         ioc_date: "2022-12-25 12:00:00" # All IOCs from after Xmas 2022 with the "SAFER" tag 
 
 correlation: # use this if no files are defined from commmand line
   input_dir: /var/unicor/matches # This is were JSON input from dns-collector, Zeek, etc. goes
@@ -32,11 +32,16 @@ correlation: # use this if no files are defined from commmand line
   malicious_ips_file: /var/unicor/misp_ips.txt # fetch-iocs will add IPs from MISP here
 
 alerting:
-  
   max_alerts: 5 # Maximum number of alerts to be sent
   # At least one of the following needs to be enabled. Webhook is the prefered choice.
   messaging_webhook:  # Slack, Mattermost, Google Chat, etc.
      webhook: "https://hooks.slack.com/services/..." # <-- You MUST ADD YOUR OWN WEBHOOK
+     template: "/etc/unicor/webhook.template"
+
+#  telegram:
+#    telegram_bot_token: "0123456789:AAAAA-AAAAA-AAAAAAAAAAA_AAAAAAAAAAA"
+#    telegram_chat_id: "987654321"
+#    template: "/etc/unicor/webhook.template"
 
 # Note: Google Chat works just like Slack. Just add a Google Chat Webhook URL in the "slack_hook" above
 #  email:

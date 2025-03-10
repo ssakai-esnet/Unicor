@@ -91,8 +91,12 @@ def enrich_logs(logs, misp_connections, is_minified):
 
         # Generic mode
         else:
-            timestamp = log['timestamp_rfc3339ns']
-            detection = log['detection']
+            if log.get('detections'): # We have multiple detections on the same IOC
+                detections =  log['detections']   
+            else: # We have a single detection
+                timestamp = log['timestamp_rfc3339ns']
+                detection = log['detection']
+
             ioc = log['ioc']
             if log.get('ioc_type') == "domain":
                 domain = log['ioc']
@@ -162,11 +166,12 @@ def enrich_logs(logs, misp_connections, is_minified):
                 ioc = misp_events[0].get('ioc') if len(misp_events) > 0 else None
         if not ioc:
                 ioc = "No IOC found"
-        enriched_results.append(
+ 
+        if detections: # We have multiple detections on the same IOC
+            enriched_results.append(
             {
-                "timestamp": timestamp,
                 "ioc": ioc,
-                "detection": detection,
+                "detections": detections,
                 "correlation": {
                     "misp": {
                         "events": misp_events
@@ -174,6 +179,20 @@ def enrich_logs(logs, misp_connections, is_minified):
                 }
             }
         )
+        else: # We have a single detection
+ 
+            enriched_results.append(
+                {
+                    "timestamp": timestamp,
+                    "ioc": ioc,
+                    "detection": detection,
+                    "correlation": {
+                        "misp": {
+                            "events": misp_events
+                        }
+                    }
+                }
+            )
 
 
     return enriched_results
