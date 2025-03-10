@@ -205,7 +205,6 @@ def correlate(ctx,
             "uid": detections["uid"],
             "url": detections["url"],
         })
-    #result = list(condensed_matches.values())
     total_matches = list(condensed_matches.values())  
         
   

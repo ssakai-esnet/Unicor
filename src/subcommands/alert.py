@@ -108,7 +108,7 @@ def alert(ctx,
                                         if alert_type == "messaging_webhook":
                                             unicor_alerting_utils.messaging_webhook_alerts(match, alerting_config['messaging_webhook'], alert_pattern, alerts_database, alerts_database_max_size, alert_type)
                                         if alert_type == "telegram":
-                                            unicor_alerting_utils.telegram_alerts(match, alerting_config['telegram'], alert_pattern, alerts_database, alerts_database_max_size, alert_type)
+                                            unicor_alerting_utils.messaging_webhook_alerts(match, alerting_config['telegram'], alert_pattern, alerts_database, alerts_database_max_size, alert_type)
                                         if alert_type == "email":           
                                             unicor_alerting_utils.email_alerts(match, alerting_config['email'], summary=False)
                                 if alerts_counter == max_alerts_counter:

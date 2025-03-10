@@ -99,43 +99,30 @@ def messaging_webhook_alerts(match, config, alert_pattern, alerts_database, aler
     alert_log = match.get("detections", [{}])[0].get("detection", match.get("detection"))  
     logger.info(f"Alerting about: {match['uid'] + ': ' if 'uid' in match else ''}{alert_log}") 
     # SENDING!
-    payload = {"text": f"{msg}"}
-    headers = {"Content-type": "application/json"}
-    try:
-        response = requests.post(config['webhook'], headers=headers, json=payload)
-        logger.debug("Webhook: {} - {}".format(response.status_code, response.text))
-        response.raise_for_status()  # This will raise an HTTPError if the response was an HTTP error
-        # If the request worked, then register the alert in our "database" to avoir duplicate alerts
-        register_new_alert(alerts_database, alerts_database_max_size, alert_pattern)
-    except requests.exceptions.RequestException as e:
-        logger.warning("Webhook post failed: {}".format(e))
-
-
-def telegram_alerts(match, config, alert_pattern, alerts_database, alerts_database_max_size, alert_type):
-    if 'correlation' in match and 'misp' in match['correlation'] and 'events' in match['correlation']['misp']:
-        # Let's build a message
-        if match['correlation']['misp']['events']:
-            msg = build_msg(config['template'], match)            
-        else:
-            logger.error("No correlation data found for {}".format(alert_pattern))
-    else:
-        logger.warning("No correlation data found for {}".format(alert_pattern))
-
-    logger.debug("MSG: {}".format(msg))
     
-    alert_log = match.get("detections", [{}])[0].get("detection", match.get("detection"))  
-    logger.info(f"Alerting about: {match['uid'] + ': ' if 'uid' in match else ''}{alert_log}") 
-    # SENDING!
-    payload = {'chat_id': config['telegram_chat_id'], 'text': msg}
-    telegram_url = f"https://api.telegram.org/bot{config['telegram_bot_token']}/sendMessage"
+    if config.get('webhook'):
+        payload = {"text": f"{msg}"}
+        headers = {"Content-type": "application/json"}
+        try:
+            response = requests.post(config['webhook'], headers=headers, json=payload)
+            logger.debug("Webhook: {} - {}".format(response.status_code, response.text))
+            response.raise_for_status()  # This will raise an HTTPError if the response was an HTTP error
+            # If the request worked, then register the alert in our "database" to avoir duplicate alerts
+            register_new_alert(alerts_database, alerts_database_max_size, alert_pattern)
+        except requests.exceptions.RequestException as e:
+            logger.warning("Webhook post failed: {}".format(e))
+            
+    if config.get('telegram_chat_id'):
+        payload = {'chat_id': config['telegram_chat_id'], 'text': msg}
+        telegram_url = f"https://api.telegram.org/bot{config['telegram_bot_token']}/sendMessage"
 
-    try:
-        response = requests.post(telegram_url, data=payload)
-        logger.debug("Telegram: {} - {}".format(response.status_code, response.text))
-        response.raise_for_status()  # This will raise an HTTPError if the response was an HTTP error
-        register_new_alert(alerts_database, alerts_database_max_size, alert_pattern)
-    except requests.exceptions.RequestException as e:
-        logger.warn("Telegram post failed: {}".format(e))
+        try:
+            response = requests.post(telegram_url, data=payload)
+            logger.debug("Telegram: {} - {}".format(response.status_code, response.text))
+            response.raise_for_status()  # This will raise an HTTPError if the response was an HTTP error
+            register_new_alert(alerts_database, alerts_database_max_size, alert_pattern)
+        except requests.exceptions.RequestException as e:
+            logger.warning("Telegram post failed: {}".format(e))
 
 def email_alerts(alerts, config, summary = False):
 

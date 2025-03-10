@@ -6,7 +6,7 @@
 {% endfor -%}
 {% if match['detections'] %}
 {%- for event in match['detections'] %}
-- {%- if event['url'] -%}<{{ event['url'] }}|{%- endif -%}*Detection {{loop.index}}*{%- if event['url'] -%}>{%- endif %} ({{ event['timestamp_rfc3339ns'] }}):
+- {%- if event['url'] -%}<{{ event['url'] }}|{%- endif -%}*Detection {{loop.index}}*{%- if event['url'] -%}>{%- endif %} ({{ event['timestamp_rfc3339ns'][:19] + 'Z' }}):
 > {{ event['detection'] | replace('\n', '\n>') }}
     {%- if event['uid'] %}
 > UID: {{ event['uid'] }}
