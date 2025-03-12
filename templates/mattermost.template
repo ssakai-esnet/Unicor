@@ -1,0 +1,24 @@
+🦄 [Unicor]: {% for event in events %}[{{ event['organization'] }}] <{{ event['event_url'] }}|{{ event['info'] }}>
+**Tags**: "{{ event['tags'][:3] | map(attribute='name') | map('replace', '"', '\\"') | map('replace', '\n', ', "') | join(', ') }}"
+- **IOC**: `{{ match['ioc'].replace('.', '[.]') }}` ({{ event['ioc_type'] }})
+- **MISP IOC date**: {{ event['publication'] }}
+{% if event['comment'] %}- **MISP IOC Comment**: {{ event['comment'] | default('') | replace('\n', ', ') }}{% endif %}
+{% endfor -%}
+{% if match['detections'] %}
+{%- for event in match['detections'] %}
+
+- {%- if event['url'] -%}<{{ event['url'] }}|{%- endif -%}**Detection {{loop.index}}**{%- if event['url'] -%}>{%- endif %} ({{ event['timestamp_rfc3339ns'][:19] + 'Z' }}):
+> {{ event['detection'] | replace('\n', '\n>') }}
+    {%- if event['uid'] %}
+> UID: {{ event['uid'] }}
+    {%- endif -%}
+
+
+{% endfor %}
+{% else %}
+{%- if match['url'] -%}<{{ match['url'] }}|{%- endif -%}**Detection**{%- if match['url'] -%}>{%- endif %} ({{ timestamp }}):
+> {{ match['detection'] | replace('\n', '\n>') }}
+{%- if match['uid'] %}
+> UID: {{ match['uid'] }}
+{% endif %}
+{% endif %}
