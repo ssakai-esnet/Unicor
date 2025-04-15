@@ -115,7 +115,6 @@ For compatibility with the rest of this guide, it is also necessary to create a 
 For example, a Bash or Python script in `/usr/local/bin/unicor`:
 
 ```
-cd src/
 sudo bash -c 'echo -e "#!/bin/bash\ncd \"$(pwd)\"\npython3 -m unicor \"\$@\"" > /usr/local/bin/unicor && chmod +x /usr/local/bin/unicor'
 ```
 
