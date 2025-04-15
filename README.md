@@ -139,8 +139,13 @@ Create the relevant user, files and directories, and assign permissions:
 
    ```sh
    mkdir -p /etc/unicor/
-   curl -Lo /etc/unicor/config.yml https://raw.githubusercontent.com/safer-trust/unicor/refs/heads/main/config/config.yml
+   curl -Lo /etc/unicor/config.yml https://raw.githubusercontent.com/safer-trust/Unicor/refs/heads/main/config/config.yml
    chown -R unicor:unicor /etc/unicor
+   ```
+
+- Copy the alerting templates:
+   ```sh
+   cp templates/* /etc/unicor/
    ```
 
 - Modify it to add you MISP URL + API, and configure a destination output for alerts. Webhooks are recommended.
