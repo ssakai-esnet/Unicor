@@ -135,7 +135,7 @@ Create the relevant user, files and directories, and assign permissions:
 
 #### 2.2 Configuration file & CRON
 
-- Create the Unicor configuration file (`config.yml`) under `/etc/unicor/`, based on the [Unicor template](https://raw.githubusercontent.com/safer-trust/unicor/refs/heads/main/config/config.yml](https://raw.githubusercontent.com/safer-trust/unicor/refs/heads/main/config/config.yml).
+- Create the Unicor configuration file (`config.yml`) under `/etc/unicor/`, based on the [Unicor template](https://raw.githubusercontent.com/safer-trust/Unicor/refs/heads/main/config/config.yml).
 
    ```sh
    mkdir -p /etc/unicor/
