@@ -224,7 +224,7 @@ def correlate(ctx,
     total_matches = flattened_matches
     #total_matches = list(condensed_matches.values())  
         
-    logger.debug("Enrich input: {}".format(total_matches))
+    #logger.debug("Enrich input: {}".format(total_matches))
     if not len(total_matches):
         logger.info("No MISP correlation found in the input.")
 
