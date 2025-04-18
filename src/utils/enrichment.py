@@ -66,28 +66,11 @@ def enrich_logs(logs, misp_connections, is_minified):
         ips = []
         domain = ""
         ioc = ""
-        # Triage the IOC type, between dnstap, domain or IP
-        
-        # dnstap data format
-        if log.get('ioc_type') == "dns":
-            if is_minified:
-                domain = log['query']
-                ips = log['answers']
-                timestamp = log['timestamp']
-                query_ip = log['client']
-                client_id = log['client_id']
-            else:
-                domain = log['dns']['qname']
-                ips = log['dns']['resource-records']['an']
-                timestamp = log['dnstap']['timestamp-rfc3339ns']
-                query_ip = log['network']['query-ip']
-                client_id = log['dnstap']['identity']
-            
-            answers =  ', '.join([f"{entry['rdata'].split(' ', 1)[-1]} [{entry['rdatatype']}]" for entry in ips])
-            if not answers:
-                answers = "No answer"
-            detection = f"*DNS Client*:`{query_ip}`\n*Query*:`{domain}`\n*Answer*: `{answers}`"
-
+        timestamp = ""
+        detections = ""
+        if log.get('ioc_type') == "dns": # This is only if we failed to detect the ioc_type in DNS logs. That's bad. 
+            detections =  log['detections']
+            ioc = log['ioc']
 
         # Generic mode
         else:

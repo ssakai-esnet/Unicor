@@ -37,9 +37,8 @@ def correlate_events(lines, shared_data):
         # Testing if input is pdns. If so, input can be a domain, an array of IPs, or both
         if match.get('dns', {}).get('id'):
             logger.debug("DNS mode")
-            match['ioc_type'] = "dns"
+            match['ioc_type'] = "dns" #Not sure yet if ioc_type is an IP or a domain
             if is_minified:
-                timestamp = unicor_time_utils.parse_rfc3339_ns(match['timestamp'])
                 try:
                     timestamp = unicor_time_utils.parse_rfc3339_ns(match['timestamp'])
                 except ValueError:
@@ -55,6 +54,15 @@ def correlate_events(lines, shared_data):
                     logger.warning("Unable to digest timestamp: {}".format(match))
                 domain = match['dns']['qname']
                 ips = match['dns']['resource-records']['an']
+                logger.debug("IOC: {}".format(domain))
+
+            answers =  ', '.join([f"{entry['rdata'].split(' ', 1)[-1]} [{entry['rdatatype']}]" for entry in ips])
+            if not answers:
+                answers = "Did not resolve to an IP"
+            match['detection'] = f"*DNS Client*:`{match['network']['query-ip']}`\n*Query*:`{domain}`\n*Answer*: `{answers}`"
+            match['url'] = ""
+            match['uid'] = ""
+            match['timestamp_rfc3339ns'] = timestamp.isoformat()
 
         # Triaging generic input. Assuming it can only be an IP or a domain?
         else:
@@ -94,18 +102,21 @@ def correlate_events(lines, shared_data):
                 
         if domain:
             if correlate_domain(domain, domain_attributes):
+                match['ioc'] = domain
+                match['ioc_type'] = "domain"
                 total_matches.append(match) 
 
         for ip_structure in ips:
             #logger.debug("This is my IP: {}".format(ip_structure))
             if correlate_ip(ip_structure, ip_attributes):
+                match['ioc'] = ip_structure
+                match['ioc_type'] = "ip"
                 if ip_attributes_metadata: # retro mode
                     total_matches.append(match)
                     continue
                 else:
                     total_matches.append(match)
                 break       
-
 
     return total_matches
 

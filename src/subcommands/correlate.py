@@ -205,14 +205,30 @@ def correlate(ctx,
             "uid": detections["uid"],
             "url": detections["url"],
         })
-    total_matches = list(condensed_matches.values())  
+
+    # Now flatten if there's only one detection
+    flattened_matches = []
+    for ioc, data in condensed_matches.items():
+        detections = data["detections"]
+        if len(detections) == 1:
+            # Merge ioc and ioc_type into the detection dict
+            single_detection = {
+            **detections[0],
+            "ioc": data["ioc"],
+            "ioc_type": data["ioc_type"]
+            }
+            flattened_matches.append(single_detection)
+        else:
+            flattened_matches.append(data)
+    
+    total_matches = flattened_matches
+    #total_matches = list(condensed_matches.values())  
         
-  
+    logger.debug("Enrich input: {}".format(total_matches))
     if not len(total_matches):
         logger.info("No MISP correlation found in the input.")
 
     # We have a list of matches, let's enrich them with MISP meta data
-    #logger.debug("Enrich input: {}".format(total_matches))
     else:
         # This part is now indented to NOT alert if there is no corresponding IOC in MISP
         enriched = unicor_enrichment_utils.enrich_logs(total_matches, misp_connections, False)
@@ -224,8 +240,6 @@ def correlate(ctx,
         # Write full enriched matches to matches.json
 
         to_output = enriched + enriched_minified
-
         with jsonlines.open(Path(correlation_config['output_dir'], "matches.json"), mode='a') as writer:
             for document in to_output:
                 writer.write(document)
-
