@@ -102,14 +102,14 @@ def correlate_events(lines, shared_data):
                 
         if domain:
             if correlate_domain(domain, domain_attributes):
-                match['ioc'] = domain
+                #match['ioc'] = domain
                 match['ioc_type'] = "domain"
                 total_matches.append(match) 
 
         for ip_structure in ips:
             #logger.debug("This is my IP: {}".format(ip_structure))
             if correlate_ip(ip_structure, ip_attributes):
-                match['ioc'] = ip_structure
+                #match['ioc'] = ip_structure
                 match['ioc_type'] = "ip"
                 if ip_attributes_metadata: # retro mode
                     total_matches.append(match)
