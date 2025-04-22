@@ -68,7 +68,7 @@ def alert(ctx,
             # Processing each file in the directory
             if file_path.is_file():
                 alerts, _ =  unicor_file_utils.read_file(file_path, delete_after_read=False)
-                logger.info("{} alerts to be processed".format(len(alerts)))  
+                logger.info("{} alerts to be processed in {}".format(len(alerts), file_path))  
                 # Processing each alert in each file
                 if alerts:
                     try:
@@ -82,18 +82,22 @@ def alert(ctx,
                                     dt = datetime.strptime(match['timestamp'][:26], "%Y-%m-%dT%H:%M:%S.%f")
                                 epoch_time = int(time.mktime(dt.timetuple()))
                                 truncated_timestamp = epoch_time - (epoch_time % 86400)
-                                
                                 # First, make sure we are not about to create a duplicate alert 
-                                if match.get('detections'): # In case we have multiple detection, we take the first
-                                    alert_pattern  =  sha256_hash(match["detections"][0]["detection"] + match['ioc'] + str(truncated_timestamp))
-                                else: # We have a single detection
-                                    alert_pattern  =  sha256_hash(match['detection'] + match['ioc'] + str(truncated_timestamp))
-                                if if_alert_exists(alerts_database, alert_pattern):
-                                    logger.debug("Redundant alert, skipping: {}".format(alert_pattern))
-                                    continue 
+                                try:
+                                    if match.get('detections'): # In case we have multiple detection, we take the first
+                                        alert_pattern  =  sha256_hash(match["detections"][0]["detection"] + match['ioc'] + str(truncated_timestamp))
+                                    else: # We have a single detection
+                                        alert_pattern  =  sha256_hash(match['detection'] + match['ioc'] + str(truncated_timestamp))
+                                    if if_alert_exists(alerts_database, alert_pattern):
+                                        logger.debug("Redundant alert, skipping: {}".format(alert_pattern))
+                                        continue 
+                                    
+                                    logger.debug("Alert for: {match}")
+                                except  Exception as e:  # Capture specific error details        
+                                    logger.error("Failed to parse JSON: {}, skipping. Error: {}".format(match, str(e)))
+                                    continue
                                 
-                                # At this stage, each remaining alert needs to be sent, if it is under the threshold!
-                                                        
+                                # At this stage, each remaining alert needs to be sent, if it is under the threshold!       
                                 if alerts_counter < max_alerts_counter:
                                     logger.debug("Sending an alert for: {}".format(alert_pattern))
                                     if alerts_counter == max_alerts_counter - 1:
@@ -122,14 +126,9 @@ def alert(ctx,
                     except Exception as e:  # Capture specific error details        
                         logger.error("Failed to parse {}, skipping. Error: {}".format(file, str(e)))
                         continue
-                logger.debug("Deleting content of: {}".format(file_path))
-                with open(file_path, 'w') as file:
-                    file.write("")  # Write an empty string to the file and automatically close it
                 logger.debug("Deleting content of {}".format(file_path))
                 with open(file_path, 'w') as file:
                     file.write("")  # Write an empty string to the file and automatically close it
 
    # if not len(pending_alerts):
     #    logger.info("No alert to be sent.")
-
-
