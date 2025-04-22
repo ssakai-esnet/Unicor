@@ -1,9 +1,14 @@
+{% if events %}
 🦄 [Unicor]: {% for event in events %}[{{ event['organization'] }}] <{{ event['event_url'] }}|{{ event['info'] }}>
 *tags*: "{{ event['tags'][:3] | map(attribute='name') | map('replace', '"', '\\"') | map('replace', '\n', ', "') | join(', ') }}"
 - *IOC*: `{{ match['ioc'].replace('.', '[.]') }}` ({{ event['ioc_type'] }})
 - *MISP IOC date*: {{ event['publication'] }}
 {% if event['comment'] %}- *MISP IOC Comment*: {{ event['comment'] | default('') | replace('\n', ', ') }}{% endif %}
 {% endfor -%}
+{% else %}
+🦄 [Unicor]: No MISP event found, but:
+- *IOC*: `{{ match['ioc'].replace('.', '[.]') }}`
+{%- endif -%}
 {% if match['detections'] %}
 {%- for event in match['detections'] %}
 - {%- if event['url'] -%}<{{ event['url'] }}|{%- endif -%}*Detection {{loop.index}}*{%- if event['url'] -%}>{%- endif %} ({{ event['timestamp_rfc3339ns'][:19] + 'Z' }}):
