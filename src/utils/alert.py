@@ -61,7 +61,6 @@ def parse_msg(path, variables):
 
     # Load the template
     template = template_env.get_template(template_file.name)
-
     try:
         msg = template.render(variables)
     except jinja2.TemplateError as e:
@@ -77,7 +76,7 @@ def build_msg(path, match):
         dt= datetime.strptime(match['timestamp'][:26], "%Y-%m-%dT%H:%M:%S.%f")
         timestamp =  dt.strftime("%Y-%m-%d %H:%M:%SZ")
     context = {
-        'events': match['correlation']['misp']['events'],
+        'events': match.get('correlation', {}).get('misp', {}).get('events', []),
         'match': match,
         'timestamp': timestamp,
     }
@@ -86,14 +85,14 @@ def build_msg(path, match):
 
 def messaging_webhook_alerts(match, config, alert_pattern, alerts_database, alerts_database_max_size, alert_type):
     #logger.debug("messaging_webhook hook {}".format(config['webhook']))
-    if 'correlation' in match and 'misp' in match['correlation'] and 'events' in match['correlation']['misp']:
+#    if 'correlation' in match and 'misp' in match['correlation'] and 'events' in match['correlation']['misp']:
+    if match.get('correlation', {}).get('misp', {}).get('events'):
         # Let's build a message
-        if match['correlation']['misp']['events']:
-            msg = build_msg(config['template'], match)            
-        else:
-            logger.error("No correlation data found for {}".format(alert_pattern))
+        msg = build_msg(config['template'], match)            
     else:
-        logger.error("No correlation data found for {}".format(alert_pattern))
+        logger.error("No MISP correlation data found for {}".format(alert_pattern))
+        # Alerting anyway, without any MISP context
+        msg = build_msg(config['template'], match)            
     logger.debug("MSG: {}".format(msg))
     
     alert_log = match.get("detections", [{}])[0].get("detection", match.get("detection"))  
