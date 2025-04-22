@@ -92,7 +92,7 @@ def alert(ctx,
                                         logger.debug("Redundant alert, skipping: {}".format(alert_pattern))
                                         continue 
                                     
-                                    logger.debug("Alert for: {match}")
+                                    logger.debug(f"Alert for: {match}")
                                 except  Exception as e:  # Capture specific error details        
                                     logger.error("Failed to parse JSON: {}, skipping. Error: {}".format(match, str(e)))
                                     continue
