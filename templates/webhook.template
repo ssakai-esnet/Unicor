@@ -8,7 +8,7 @@
 {% else %}
 🦄 [Unicor]: No MISP event found, but:
 - *IOC*: `{{ match['ioc'].replace('.', '[.]') }}`
-{%- endif -%}
+{% endif -%}
 {% if match['detections'] %}
 {%- for event in match['detections'] %}
 - {%- if event['url'] -%}<{{ event['url'] }}|{%- endif -%}*Detection {{loop.index}}*{%- if event['url'] -%}>{%- endif %} ({{ event['timestamp_rfc3339ns'][:19] + 'Z' }}):
