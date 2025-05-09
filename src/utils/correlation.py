@@ -109,7 +109,7 @@ def correlate_events(lines, shared_data):
         for ip_structure in ips:
             #logger.debug("This is my IP: {}".format(ip_structure))
             if correlate_ip(ip_structure, ip_attributes):
-                #match['ioc'] = ip_structure
+                match['ioc'] = ip_structure['rdata'] if not match.get('ioc') else match['ioc']
                 match['ioc_type'] = "ip"
                 if ip_attributes_metadata: # retro mode
                     total_matches.append(match)
