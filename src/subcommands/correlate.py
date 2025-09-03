@@ -74,6 +74,7 @@ def correlate(ctx,
     **kwargs):
 
     correlation_config = ctx.obj['CONFIG']['correlation']
+    max_alerts_counter = ctx.obj['CONFIG']['alerting']['max_alerts']
 
     # This is important. By default, we delete the JSON date in the matches.
     # If we run in retro search mode, we keep the file and do not delete it.
@@ -198,13 +199,14 @@ def correlate(ctx,
         condensed_matches[ioc]["ioc"] = ioc
         condensed_matches[ioc]["ioc_type"] = detections["ioc_type"]
         
-        # Append nested entries
-        condensed_matches[ioc]["detections"].append({
-            "timestamp_rfc3339ns": detections["timestamp_rfc3339ns"],
-            "detection": detections["detection"],
-            "uid": detections["uid"],
-            "url": detections["url"],
-        })
+        # Append nested entries (within the maximum allowed number of detections)
+        if len(condensed_matches[ioc]["detections"]) < max_alerts_counter:
+            condensed_matches[ioc]["detections"].append({
+                "timestamp_rfc3339ns": detections["timestamp_rfc3339ns"],
+                "detection": detections["detection"],
+                "uid": detections["uid"],
+                "url": detections["url"],
+            })
 
     # Now flatten if there's only one detection
     flattened_matches = []
