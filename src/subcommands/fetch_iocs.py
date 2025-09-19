@@ -131,7 +131,7 @@ def fetch_iocs(ctx,
             elif attribute.type == 'domain|ip':
                 domain_val, ip_val = attribute.value.split("|")
                 domain_attributes_new.append(domain_val)
-                ips_attributes_new.append(ip_val)
+                #ips_attributes_new.append(ip_val) # NOT adding the IP when dealing with domain|ip tuples
             elif attribute.type == 'hostname|port':
                 hostname_val, _ = attribute.value.split("|")
                 domain_attributes_new.append(hostname_val)

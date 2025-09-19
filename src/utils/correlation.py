@@ -103,6 +103,7 @@ def correlate_events(lines, shared_data):
         if domain:
             if correlate_domain(domain, domain_attributes):
                 match['ioc'] = domain if not match.get('ioc') else match['ioc']
+                logger.debug("Adding domain IOC: {}".format(match['ioc']))
                 match['ioc_type'] = "domain"
                 total_matches.append(match) 
 

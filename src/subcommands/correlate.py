@@ -193,6 +193,7 @@ def correlate(ctx,
     
     condensed_matches = defaultdict(lambda: {"ioc": "", "ioc_type": "", "detections": []})
     for detections in total_matches:
+        logger.debug("DETECTION IOC DEBUG: {}".format(detections))
         ioc = detections["ioc"]
         
         # Initialize main keys
@@ -201,12 +202,13 @@ def correlate(ctx,
         
         # Append nested entries (within the maximum allowed number of detections)
         if len(condensed_matches[ioc]["detections"]) < max_alerts_counter:
+
             condensed_matches[ioc]["detections"].append({
-                "timestamp_rfc3339ns": detections["timestamp_rfc3339ns"],
-                "detection": detections["detection"],
-                "uid": detections["uid"],
-                "url": detections["url"],
-            })
+             "timestamp_rfc3339ns": detections["timestamp_rfc3339ns"],
+             "detection": detections["detection"],
+             "uid": detections["uid"],
+             "url": detections["url"],
+         })
 
     # Now flatten if there's only one detection
     flattened_matches = []
