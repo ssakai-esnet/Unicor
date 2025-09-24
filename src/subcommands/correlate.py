@@ -205,7 +205,7 @@ def correlate(ctx,
 
     
             condensed_matches[ioc]["detections"].append({
-             "timestamp_rfc3339ns": detections["timestamp_rfc3339ns"],
+             "timestamp_rfc3339ns": detections.get("timestamp_rfc3339ns", "").rstrip("Z"),
              "detection": detections["detection"],
              "uid": detections.get("uid", ""),
              "url": detections.get("url", ""),
