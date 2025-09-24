@@ -203,11 +203,12 @@ def correlate(ctx,
         # Append nested entries (within the maximum allowed number of detections)
         if len(condensed_matches[ioc]["detections"]) < max_alerts_counter:
 
+    
             condensed_matches[ioc]["detections"].append({
              "timestamp_rfc3339ns": detections["timestamp_rfc3339ns"],
              "detection": detections["detection"],
-             "uid": detections["uid"],
-             "url": detections["url"],
+             "uid": detections.get("uid", ""),
+             "url": detections.get("url", ""),
          })
 
     # Now flatten if there's only one detection
