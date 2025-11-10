@@ -150,6 +150,10 @@ def enrich_logs(logs, misp_connections, is_minified):
         if not ioc:
                 ioc = "No IOC found"
  
+ 
+        # Limit alerts context to 3 MISP events maximum
+        misp_events = misp_events[-3:]
+ 
         if detections: # We have multiple detections on the same IOC
             enriched_results.append(
             {
