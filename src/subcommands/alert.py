@@ -74,6 +74,8 @@ def alert(ctx,
                     try:
                         # Going through each of the alerts
                         for match in alerts:
+                                # DEDUPLICATION and REPEATING alerts management
+                                
                                 # Making a string from the timestamp that should cover a 24h window
                                 if match.get('detections'): # In case we have multiple detection, we take the first
                                     first_timestamp = min(d["timestamp_rfc3339ns"] for d in match["detections"])
@@ -82,15 +84,31 @@ def alert(ctx,
                                     dt = datetime.strptime(match['timestamp'][:26], "%Y-%m-%dT%H:%M:%S.%f")
                                 epoch_time = int(time.mktime(dt.timetuple()))
                                 truncated_timestamp = epoch_time - (epoch_time % 86400)
-                                # First, make sure we are not about to create a duplicate alert 
+                                
+                                # Go through each candidate alert, and check if we have seen it in that time window
                                 try:
-                                    if match.get('detections'): # In case we have multiple detection, we take the first
-                                        alert_pattern  =  sha256_hash(match["detections"][0]["detection"] + match['ioc'] + str(truncated_timestamp))
+                                    # One alert can have one or multiple detections
+                                    
+                                    if match.get('detections'): # We have multiple detections
+                                        # Go through each detection, and "pop" out the redundant entries
+                                        for i in reversed(range(len(match["detections"]))):
+                                            detection_entry = match["detections"][i]
+                                            alert_pattern = sha256_hash(detection_entry["detection"] + match['ioc'] + str(truncated_timestamp))
+                                            
+                                            if if_alert_exists(alerts_database, alert_pattern):
+                                                logger.debug("Redundant alert, skipping: {}".format(alert_pattern))
+                                                # Remove redundant detection in place
+                                                match["detections"].pop(i)
+
+                                        # Have all the detections in this alert been seen before?
+                                        if not match["detections"]:
+                                            continue
+                                        #
                                     else: # We have a single detection
                                         alert_pattern  =  sha256_hash(match['detection'] + match['ioc'] + str(truncated_timestamp))
-                                    if if_alert_exists(alerts_database, alert_pattern):
-                                        logger.debug("Redundant alert, skipping: {}".format(alert_pattern))
-                                        continue 
+                                        if if_alert_exists(alerts_database, alert_pattern):
+                                            logger.debug("Redundant alert, skipping: {}".format(alert_pattern))
+                                            continue 
                                     
                                     logger.debug(f"Alert for: {match}")
                                 except  Exception as e:  # Capture specific error details        
