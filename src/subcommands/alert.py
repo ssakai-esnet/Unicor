@@ -81,17 +81,18 @@ def alert(ctx,
             if file_path.is_file():
                 alerts, _ =  unicor_file_utils.read_file(file_path, delete_after_read=False)
                 logger.info("{} alerts to be processed in {}".format(len(alerts), file_path))  
-                # Processing each alert in each file
-                if alerts:
-                    # Working strictly on IOCs currently loaded by fetch-iocs as per Unicor config
-                    # Only alerts containing these IOCs will be kept 
-                    alerts = [
-                        match for match in alerts
-                        if match.get("ioc") in malicious_iocs
-                    ]
-                    
-                    try: # Going through each of the alerts
-                        for match in alerts:
+                # Processing each alert in each file                    
+                try: # Going through each of the alerts
+                    for match in alerts:
+                                # Alerting strictly on IOCs currently loaded by fetch-iocs as per Unicor config
+                                # Only alerts containing these IOCs will be kept     
+                                if match['ioc'] not in malicious_iocs:
+                                    logger.debug(
+                                        "Alert dismissed: IOC '%s' not found in Unicor IOC files",
+                                        match['ioc'],
+                                    )
+                                    continue
+                                
                                 # DEDUPLICATION and REPEATING alerts management
                                 
                                 # Making a string from the timestamp that should cover a 24h window
@@ -159,7 +160,7 @@ def alert(ctx,
                                 # If the request worked, then register the alert in our "database" to avoir duplicate alerts
                                 #register_new_alert(alerts_database, alerts_database_max_size, alert_pattern)
 
-                    except Exception as e:  # Capture specific error details        
+                except Exception as e:  # Capture specific error details        
                         logger.error("Failed to parse {}, skipping. Error: {}".format(file, str(e)))
                         continue
                 logger.debug("Deleting content of {}".format(file_path))
