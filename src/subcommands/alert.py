@@ -59,6 +59,18 @@ def alert(ctx,
         files = [correlation_config['output_dir']]
     else:
         files = kwargs.get('files')
+    
+    # Loading the list of IOCs currently valid
+    malicious_iocs = set()
+    for path in (
+        correlation_config['malicious_domains_file'],
+        correlation_config['malicious_ips_file'],
+    ):
+        with open(path, "r") as f:
+            malicious_iocs.update(
+                line.strip() for line in f
+                if line.strip() and not line.startswith("#")
+            )
         
     # Iterating through the file or the directory
     for file in files:
@@ -71,8 +83,14 @@ def alert(ctx,
                 logger.info("{} alerts to be processed in {}".format(len(alerts), file_path))  
                 # Processing each alert in each file
                 if alerts:
-                    try:
-                        # Going through each of the alerts
+                    # Working strictly on IOCs currently loaded by fetch-iocs as per Unicor config
+                    # Only alerts containing these IOCs will be kept 
+                    alerts = [
+                        match for match in alerts
+                        if match.get("ioc") in malicious_iocs
+                    ]
+                    
+                    try: # Going through each of the alerts
                         for match in alerts:
                                 # DEDUPLICATION and REPEATING alerts management
                                 
