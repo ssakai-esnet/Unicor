@@ -86,11 +86,12 @@ def alert(ctx,
                     for match in alerts:
                                 # Alerting strictly on IOCs currently loaded by fetch-iocs as per Unicor config
                                 # Only alerts containing these IOCs will be kept     
-                                if match['ioc'] not in malicious_iocs:
+                                # Note: in DNS mode, 'ioc' may be a domain or one or multiple IP addresses. in DNS mode, match.get('ioc') is not populated yet.
+                                if  match.get('ioc') and match.get('ioc') not in malicious_iocs:
                                     logger.debug(
-                                        "Alert dismissed: IOC '%s' not found in Unicor IOC files",
-                                        match['ioc'],
+                                        "Alert dismissed: '{}' not found in Unicor ioc files".format(match.get('ioc'))
                                     )
+                                    logger.debug("Dissmissed: {}".format(match))
                                     continue
                                 
                                 # DEDUPLICATION and REPEATING alerts management
@@ -112,7 +113,7 @@ def alert(ctx,
                                         # Go through each detection, and "pop" out the redundant entries
                                         for i in reversed(range(len(match["detections"]))):
                                             detection_entry = match["detections"][i]
-                                            alert_pattern = sha256_hash(detection_entry["detection"] + match['ioc'] + str(truncated_timestamp))
+                                            alert_pattern = sha256_hash(detection_entry["detection"] + match.get('ioc') + str(truncated_timestamp))
                                             
                                             if if_alert_exists(alerts_database, alert_pattern):
                                                 logger.debug("Redundant alert, skipping: {}".format(alert_pattern))
@@ -124,7 +125,7 @@ def alert(ctx,
                                             continue
                                         #
                                     else: # We have a single detection
-                                        alert_pattern  =  sha256_hash(match['detection'] + match['ioc'] + str(truncated_timestamp))
+                                        alert_pattern  =  sha256_hash(match['detection'] + match.get('ioc') + str(truncated_timestamp))
                                         if if_alert_exists(alerts_database, alert_pattern):
                                             logger.debug("Redundant alert, skipping: {}".format(alert_pattern))
                                             continue 
