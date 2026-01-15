@@ -125,6 +125,9 @@ def alert(ctx,
                                             else:
                                                 logger.debug("New alert: {}".format(detection_entry["detection"] + match.get('ioc') + str(truncated_timestamp)))
                                             all_alert_patterns.add(alert_pattern)
+                                            
+                                        # Re-flatten the detections in case we went from multiple detections to a single detection due to duplicates
+                                        match = unicor_correlation_utils.flatten_detections(match)
                                         # Have all the detections in this alert been seen before?
                                         if not match["detections"]:
                                             continue
@@ -134,9 +137,7 @@ def alert(ctx,
                                         if if_alert_exists(alerts_database, alert_pattern):
                                             logger.debug("Redundant alert, skipping: {}".format(alert_pattern))
                                             continue 
-                                    
-                                    # Re-flatten the detections in case we went from multiple detections to a single detection due to duplicates
-                                    match = unicor_correlation_utils.flatten_detections(match)
+                                
 
                                     logger.debug(f"Alert for: {match}")
                                 except  Exception as e:  # Capture specific error details        

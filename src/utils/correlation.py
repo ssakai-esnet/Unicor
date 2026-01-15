@@ -131,8 +131,11 @@ def flatten_detections(matches):
     Flattens entries that contain only one detection by merging
     ioc and ioc_type into the detection dictionary.
 
-    Returns a list of flattened match objects.
+    This is to refactor the JSON and avoid having alerts with "Detection 1" if we have only one detection.
     """
+    if isinstance(matches, dict):
+        matches = [matches]  # wrap single alert in a list
+
     flattened_matches = []
 
     for ioc, data in matches.items():
@@ -142,8 +145,8 @@ def flatten_detections(matches):
             # Merge ioc and ioc_type into the detection dict
             single_detection = {
                 **detections[0],
-                "ioc": data["ioc"],
-                "ioc_type": data["ioc_type"]
+                "ioc": data.get("ioc"),
+                "ioc_type": data.get("ioc_type"),
             }
             flattened_matches.append(single_detection)
         else:
