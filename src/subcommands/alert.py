@@ -110,18 +110,20 @@ def alert(ctx,
                                     # One alert can have one or multiple detections
                                     
                                     if match.get('detections'): # We have multiple detections
-                                        # Go through each detection, and "pop" out the redundant entries
+                                    # Go through each detection, and "pop" out the redundant entries
+                                        # Track all alert_patterns generated in these detections
+                                        all_alert_patterns = set()
                                         for i in reversed(range(len(match["detections"]))):
                                             detection_entry = match["detections"][i]
                                             alert_pattern = sha256_hash(detection_entry["detection"] + match.get('ioc') + str(truncated_timestamp))
                                             
-                                            if if_alert_exists(alerts_database, alert_pattern):
+                                            if (if_alert_exists(alerts_database, alert_pattern) or alert_pattern in all_alert_patterns):
                                                 logger.debug("Duplicate alert: {}".format(detection_entry["detection"] + match.get('ioc') + str(truncated_timestamp)))
                                                 # Remove redundant detection in place
                                                 match["detections"].pop(i)
                                             else:
                                                 logger.debug("New alert: {}".format(detection_entry["detection"] + match.get('ioc') + str(truncated_timestamp)))
-
+                                            all_alert_patterns.add(alert_pattern)
                                         # Have all the detections in this alert been seen before?
                                         if not match["detections"]:
                                             continue
