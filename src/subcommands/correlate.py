@@ -193,7 +193,7 @@ def correlate(ctx,
     
     condensed_matches = defaultdict(lambda: {"ioc": "", "ioc_type": "", "detections": []})
     for detections in total_matches:
-        logger.debug("DETECTION IOC DEBUG: {}".format(detections))
+        logger.debug("Detections: {}".format(detections))
         ioc = detections["ioc"]
         
         # Initialize main keys

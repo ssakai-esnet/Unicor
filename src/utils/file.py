@@ -56,8 +56,8 @@ def read_file(file_path, delete_after_read):
         logging.debug("Deleting {}".format(file_path))
         with open(file_path, 'w') as file:
             file.write("")  # Write an empty string to the file and automatically close it
-    else:
-        logging.debug("NOT deleting {}".format(file_path))
+    #else:
+    #    logging.debug("NOT deleting {}".format(file_path))
 
     return file_iter, is_minified
 
