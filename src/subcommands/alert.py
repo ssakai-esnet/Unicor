@@ -5,6 +5,7 @@ from subcommands.utils import make_sync
 from utils import file as unicor_file_utils
 from utils import time as unicor_time_utils
 from utils import alert as unicor_alerting_utils
+from utils import correlation as unicor_correlation_utils
 import logging
 import hashlib
 import jinja2
@@ -134,6 +135,9 @@ def alert(ctx,
                                             logger.debug("Redundant alert, skipping: {}".format(alert_pattern))
                                             continue 
                                     
+                                    # Re-flatten the detections in case we went from multiple detections to a single detection due to duplicates
+                                    match = unicor_correlation_utils.flatten_detections(match)
+
                                     logger.debug(f"Alert for: {match}")
                                 except  Exception as e:  # Capture specific error details        
                                     logger.error("Failed to parse JSON: {}, skipping. Error: {}".format(match, str(e)))

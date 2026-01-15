@@ -70,6 +70,34 @@ logger = logging.getLogger(__name__)
     ),
 )
 @click.pass_context
+
+
+def flatten_detections(matches):
+    """
+    Flattens entries that contain only one detection by merging
+    ioc and ioc_type into the detection dictionary.
+
+    Returns a list of flattened match objects.
+    """
+    flattened_matches = []
+
+    for ioc, data in matches.items():
+        detections = data["detections"]
+
+        if len(detections) == 1:
+            # Merge ioc and ioc_type into the detection dict
+            single_detection = {
+                **detections[0],
+                "ioc": data["ioc"],
+                "ioc_type": data["ioc_type"]
+            }
+            flattened_matches.append(single_detection)
+        else:
+            flattened_matches.append(data)
+
+    return flattened_matches
+
+
 def correlate(ctx,
     **kwargs):
 
@@ -212,22 +240,23 @@ def correlate(ctx,
          })
 
     # Now flatten if there's only one detection
-    flattened_matches = []
-    for ioc, data in condensed_matches.items():
-        detections = data["detections"]
-        if len(detections) == 1:
-            # Merge ioc and ioc_type into the detection dict
-            single_detection = {
-            **detections[0],
-            "ioc": data["ioc"],
-            "ioc_type": data["ioc_type"]
-            }
-            flattened_matches.append(single_detection)
-        else:
-            flattened_matches.append(data)
+#     flattened_matches = []
+#    for ioc, data in condensed_matches.items():
+#        detections = data["detections"]
+#        if len(detections) == 1:
+#            # Merge ioc and ioc_type into the detection dict
+#            single_detection = {
+#            **detections[0],
+#            "ioc": data["ioc"],
+#            "ioc_type": data["ioc_type"]
+#            }
+#            flattened_matches.append(single_detection)
+#        else:
+#            flattened_matches.append(data) 
+#
+#    total_matches = flattened_matches
     
-    total_matches = flattened_matches
-    #total_matches = list(condensed_matches.values())  
+    total_matches = flatten_detections(condensed_matches)
         
     #logger.debug("Enrich input: {}".format(total_matches))
     if not len(total_matches):
