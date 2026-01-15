@@ -116,9 +116,11 @@ def alert(ctx,
                                             alert_pattern = sha256_hash(detection_entry["detection"] + match.get('ioc') + str(truncated_timestamp))
                                             
                                             if if_alert_exists(alerts_database, alert_pattern):
-                                                logger.debug("Redundant alert, skipping: {}".format(alert_pattern))
+                                                logger.debug("Duplicate alert: {}".format(detection_entry["detection"] + match.get('ioc') + str(truncated_timestamp)))
                                                 # Remove redundant detection in place
                                                 match["detections"].pop(i)
+                                            else:
+                                                logger.debug("New alert: {}".format(detection_entry["detection"] + match.get('ioc') + str(truncated_timestamp)))
 
                                         # Have all the detections in this alert been seen before?
                                         if not match["detections"]:

@@ -91,7 +91,7 @@ def correlate(ctx,
             misp_connections.append((misp, misp_conf['args']))
 
 
-    # Set up domain and ip blacklists
+    # Set up domain and IP lists to alert on, in domain_attributes and ip_attributes
     domain_attributes = []
     domain_attributes_metadata = {}
     if 'malicious_domains_file' in correlation_config and correlation_config['malicious_domains_file'] and not kwargs.get('retro_lookup'):
@@ -240,7 +240,7 @@ def correlate(ctx,
         enriched_minified = unicor_enrichment_utils.enrich_logs(total_matches_minified, misp_connections, True)
 
 
-        #logger.debug("Enriched output: {}{}".format(enriched,enriched_minified))
+        logger.debug("Final output: {}{}".format(enriched,enriched_minified))
         # Output to directory
         # Write full enriched matches to matches.json
 
