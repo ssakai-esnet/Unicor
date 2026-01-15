@@ -4,8 +4,8 @@ import ipaddress
 from subcommands.utils import make_sync
 from utils import file as unicor_file_utils
 from utils import time as unicor_time_utils
-from utils import alert as unicor_alerting_utils
 from utils import correlation as unicor_correlation_utils
+from utils import alert as unicor_alerting_utils
 import logging
 import hashlib
 import jinja2
