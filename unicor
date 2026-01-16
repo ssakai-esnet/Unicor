@@ -1,0 +1,44 @@
+#!/bin/bash
+set -u
+
+# This script will prepare a virtual environment and invoke unicor.
+# It is intended to be run from a repo clone and makes some assumptions
+# about the directories.
+
+function mkvenv
+{
+  echo "Stand by, creating .venv in ${PWD}"
+
+  # We'll need a python interpreter
+  which python &> /dev/null
+  if [[ $? -ne 0 ]]; then
+    echo "A python interpreter is required but is missing." 1>&2
+    exit 1
+  fi
+
+  # We'll need venv
+  python -m venv --help &> /dev/null
+  if [[ $? -ne 0 ]]; then
+    echo "The venv python module is required but is missing." 1>&2
+    exit 1
+  fi
+
+  # Create a .venv in the cwd (we cd'd to something reasonable, right?)
+  python3 -m venv .venv || exit 1
+
+  # Add the requirements.
+  . .venv/bin/activate; pip3 install -r requirements.txt || exit 1
+}
+
+
+# First things first, change to the dir with this script so we don't
+# barf a .venv file in some random place.
+cd $( dirname $0 )
+
+# If there's no venv, create one
+if [[ ! -d .venv || ! -d .venv/bin || ! -f .venv/bin/activate ]]; then
+  mkvenv
+fi
+
+# Invoke unicor
+. .venv/bin/activate; cd src; python -m unicor "${@}"
