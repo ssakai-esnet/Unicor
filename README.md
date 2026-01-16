@@ -52,52 +52,33 @@ An example `dnstap` alert in Slack:
 
 ### 1. Installing Unicor
 
-#### 1.1 Binary installation
-The recommended installation path is to use a binary form of Unicor, produced by PyInstaller.
+#### 1.1 Containerization
+The recommended installation path is to build your own Unicor image using the included Dockerfile.
+This was developed using `podman` though `docker` should work if directly substituted.
 
-The easiest way to get a binary x86_64 Unicor is:
 
  ```sh
- sudo curl -Lo /usr/local/bin/unicor https://github.com/safer-trust/Unicor/raw/refs/heads/main/src/dist/unicor
- chmod +x /usr/local/bin/unicor
+ ls Dockerfile
+ podman build -t unicor-local:latest .
  ```
 
-It is recommended to compile it on the local system from the repository as follows.
+The entrypoint expects persistent storage at `/persistent` in the container. To prevent a flood of
+alerts whenever the container is restarted, make sure non-ephemeral storage is mounted there. A bind-mount or
+persistent volume claim will work nicely.
 
-(It may be necessary to install dependencies and specifically reference PyMISP)
-```
-pip install pyinstaller
-git clone https://github.com/safer-trust/unicor.git
-cd unicor/
-pip install -r requirements.txt
-src/
-PYMISP_PATH=$(python3 -c "import pymisp, os; print(os.path.dirname(pymisp.__file__))")
-sed -i "s|('\([^']*\)/pymisp', 'pymisp')|('$PYMISP_PATH', 'pymisp')|g" unicor.spec
-pyinstaller unicor.spec
-```
-Then the binary will be readily available:
-```
- ./dist/unicor 
-Usage: unicor [OPTIONS] COMMAND [ARGS]...
+You'll need a method to get a `config.yml` and inputs into this location, which can be accomplished by one or more of:
+- Copy into the bind-mounted directory.
+- Use `podman cp`.
+- Use a sidecar container that mounts the same storage.
+- Drop your own scripts into the container.
+- Be creative! Your solution should meet your needs, not our idea of correct.
 
-Options:
-  -c, --config FILE  Read option defaults from the specified yaml file
-                     [default: /etc/unicor/config.yml]
-  --help             Show this message and exit.
+By default the container will exec `crond` in the foreground, which in turn runs `unicor` according to `/etc/crontab`.
+Otherwise extra args to `podman run ...` are passed directly to `unicor`.
+Use `podman run ... sh` to start a shell instead.
 
-Commands:
-  alert       Raise alerts for spotted incidents
-  correlate   Correlate input files and output matches
-  fetch-iocs  Fetch IOCs from intelligence sources
-```
-A ELF 64-bit dynamically linked version is also directly available in the [dist directory](https://github.com/safer-trust/unicor/tree/main/src/dist) of the repository.
-
-Move the binary in one of the executable PATH, for example:
-
-```sh
-sudo cp ./dist/unicor /usr/local/bin/
-```
-
+Note: The container will create a `unicor` account, and attempt to run unicor in that context, as opposed to `root`.
+Note 2: The entrypoint script will create a `/persistent/unicor/config.yml` file if none exists. It contains example content and is guaranteed to be useless as-is. It is up to you to decide how to put meaningful content there, but do keep in mind that it may contain your API tokens and webhook URLs, so don't use a configmap or do something creative with environment variables. It is okay to edit in-place.
 
 #### 1.2 Repo installation
 
@@ -105,22 +86,12 @@ This is not recommended and may result in a number of issues with Python depende
 
 ```
 git clone https://github.com/safer-trust/unicor.git
-cd unicor/
-pip install -r requirements.txt
-cd src
-python3 -m unicor
-```
-
-For compatibility with the rest of this guide, it is also necessary to create a script executing `python3 -m unicor`, available in $PATH.
-For example, a Bash or Python script in `/usr/local/bin/unicor`:
-
-```
-sudo bash -c 'echo -e "#!/bin/bash\ncd \"$(pwd)\"\npython3 -m unicor \"\$@\"" > /usr/local/bin/unicor && chmod +x /usr/local/bin/unicor'
+./unicor
 ```
 
 ### 2. Configuring Unicor
 
-#### 2.1 Filesystem preparation
+#### 2.1 Filesystem preparation (if not using the containerized approach)
 
 Create the relevant user, files and directories, and assign permissions:
 
@@ -135,7 +106,7 @@ Create the relevant user, files and directories, and assign permissions:
 
 #### 2.2 Configuration file & CRON
 
-- Create the Unicor configuration file (`config.yml`) under `/etc/unicor/`, based on the [Unicor template](https://raw.githubusercontent.com/safer-trust/Unicor/refs/heads/main/config/config.yml).
+- Create the Unicor configuration file (`config.yml`) under `/etc/unicor/`, based on the [Unicor template](https://raw.githubusercontent.com/safer-trust/Unicor/refs/heads/main/config/config.yml). [Skip if containerized]
 
    ```sh
    mkdir -p /etc/unicor/
@@ -143,7 +114,7 @@ Create the relevant user, files and directories, and assign permissions:
    chown -R unicor:unicor /etc/unicor
    ```
 
-- Copy the alerting templates:
+- Copy the alerting templates: [Skip if containerized]
    ```sh
    cp templates/* /etc/unicor/
    ```
@@ -154,7 +125,7 @@ Create the relevant user, files and directories, and assign permissions:
   vi /etc/unicor/config.yml
   ```
 
-- Test your configuration file
+- Test your configuration file [If containerized, lint your yml outside the container]
   ```sh
   # pip install yamllint
   # yamllint /etc/unicor/config.yml
@@ -174,7 +145,7 @@ CURL_CA_BUNDLE=/var/containers/misp-jisc/persistent/misp/tls/misp.crt /usr/local
 ```
 For installations from the repo, it is recommended to add the `CURL_CA_BUNDLE` variable directly in `/usr/local/bin`
 
-- Add a CRON to run Unicor on a schedule, for example in `/etc/crontab`:
+- Add a CRON to run Unicor on a schedule, for example in `/etc/crontab`: [Skip if containerized]
 
   ```
   * * * * * unicor /usr/local/bin/unicor fetch-iocs  >> /var/log/unicor-fetch-iocs.log 2>&1

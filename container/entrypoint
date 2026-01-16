@@ -11,22 +11,17 @@ UNICOR_USER=unicor
 
 # Logs go in /persistent/log. We're running as the 'unicor' user, so make sure logs can
 # be written.
-if [ ! -d /persistent/log ]; then
-  mkdir /persistent/log || exit 1
-fi
-LOGOWNER=$( stat -L -c '%U' /persistent/log )
-if [ "${LOGOWNER}" != "${UNICOR_USER}" ]; then
-  chown "${UNICOR_USER}" /persistent/log || exit 1
-fi
-
-# Persistent state is in /persistent/unicor, same story.
-if [ ! -d /persistent/unicor ]; then
-  mkdir /persistent/unicor || exit 1
-fi
-LOGOWNER=$( stat -L -c '%U' /persistent/unicor )
-if [ "${LOGOWNER}" != "${UNICOR_USER}" ]; then
-  chown "${UNICOR_USER}" /persistent/unicor || exit 1
-fi
+# 
+# The same for several other directories.
+for D in /persistent /persistent/log /persistent/unicor /persistent/unicor/matches /persistent/unicor/alerts; do
+  if [ ! -d "${D}" ]; then
+    mkdir "${D}" || exit 1
+  fi
+  LOGOWNER=$( stat -L -c '%U' "${D}" )
+  if [ "${LOGOWNER}" != "${UNICOR_USER}" ]; then
+    chown "${UNICOR_USER}" "${D}" || exit 1
+  fi
+done
 
 # If there's no config file, make one
 # Note: we have a symlink at the default location pointing at
